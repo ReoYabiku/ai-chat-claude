@@ -5,7 +5,7 @@ import { prisma } from './lib/prisma';
 
 // 環境変数の検証
 function validateEnvironment() {
-  const requiredEnvVars = ['DATABASE_URL', 'CLAUDE_API_KEY'];
+  const requiredEnvVars = ['DATABASE_URL', 'ANTHROPIC_API_KEY'];
   const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
   if (missing.length > 0) {

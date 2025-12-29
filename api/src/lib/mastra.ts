@@ -1,11 +1,11 @@
 import { Agent } from '@mastra/core/agent';
 import { logger } from './logger';
 
-if (!process.env.CLAUDE_API_KEY) {
-  throw new Error('CLAUDE_API_KEY environment variable is required');
+if (!process.env.ANTHROPIC_API_KEY) {
+  throw new Error('ANTHROPIC_API_KEY environment variable is required');
 }
 
-// Claude 3.5 Sonnet エージェントの作成
+// Claude 4.5 Sonnet エージェントの作成
 export const chatAgent = new Agent({
   id: 'chat-agent',
   name: 'AI Chat Assistant',
@@ -13,7 +13,7 @@ export const chatAgent = new Agent({
 ユーザーの質問や要求に対して、自然で分かりやすい回答を心がけてください。
 必要に応じて英語でも対応できます。
 丁寧で親しみやすいトーンで会話してください。`,
-  model: 'anthropic/claude-3-5-sonnet-20241022',
+  model: 'anthropic/claude-sonnet-4-5-20250929',
 });
 
 /**
@@ -60,7 +60,7 @@ export async function generateConversationTitle(
       name: 'Title Generator',
       instructions:
         'あなたは会話のタイトルを生成するアシスタントです。ユーザーの最初のメッセージから、短くて分かりやすいタイトル（10-30文字程度）を日本語で生成してください。タイトルのみを返してください。',
-      model: 'anthropic/claude-3-5-sonnet-20241022',
+      model: 'anthropic/claude-sonnet-4-5-20250929',
     });
 
     const response = await titleAgent.generate([
