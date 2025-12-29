@@ -1,0 +1,121 @@
+import { messageRepository } from '../repositories/message.repository';
+import { conversationRepository } from '../repositories/conversation.repository';
+import { generateChatResponse, generateConversationTitle } from '../lib/mastra';
+import { Message, Role } from '@prisma/client';
+import { logger } from '../lib/logger';
+
+export interface SendMessageResult {
+  userMessage: Message;
+  assistantMessage: Message;
+}
+
+export class ChatService {
+  /**
+   * ユーザーメッセージを送信し、AI応答を生成
+   * @param conversationId - 会話ID
+   * @param userContent - ユーザーメッセージ内容
+   * @returns ユーザーメッセージとAI応答
+   */
+  async sendMessage(
+    conversationId: string,
+    userContent: string
+  ): Promise<SendMessageResult> {
+    logger.info({ conversationId }, 'Processing user message');
+
+    // 会話が存在するか確認
+    const conversation = await conversationRepository.findById(conversationId);
+    if (!conversation) {
+      logger.error({ conversationId }, 'Conversation not found');
+      throw new Error('Conversation not found');
+    }
+
+    // ユーザーメッセージを保存
+    const userMessage = await messageRepository.create({
+      conversationId,
+      role: Role.USER,
+      content: userContent,
+    });
+
+    logger.debug(
+      { conversationId, messageId: userMessage.id },
+      'User message saved'
+    );
+
+    // 会話履歴を取得
+    const messageHistory = await messageRepository.findByConversationId(
+      conversationId
+    );
+
+    // Mastraで応答を生成
+    const conversationMessages = messageHistory.map((msg) => ({
+      role: msg.role.toLowerCase(),
+      content: msg.content,
+    }));
+
+    logger.debug(
+      { conversationId, historyLength: conversationMessages.length },
+      'Generating AI response'
+    );
+
+    const aiResponseContent = await generateChatResponse(conversationMessages);
+
+    // AI応答を保存
+    const assistantMessage = await messageRepository.create({
+      conversationId,
+      role: Role.ASSISTANT,
+      content: aiResponseContent,
+      metadata: {
+        model: 'claude-3-5-sonnet-20241022',
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    logger.info(
+      { conversationId, assistantMessageId: assistantMessage.id },
+      'AI response generated and saved'
+    );
+
+    // 最初のメッセージの場合、タイトルを自動生成
+    const messageCount = await messageRepository.count(conversationId);
+    if (messageCount === 2 && !conversation.title) {
+      try {
+        const title = await generateConversationTitle(userContent);
+        await conversationRepository.updateTitle(conversationId, title);
+        logger.info({ conversationId, title }, 'Conversation title auto-generated');
+      } catch (error) {
+        logger.warn(
+          { error, conversationId },
+          'Failed to auto-generate title, continuing anyway'
+        );
+      }
+    }
+
+    return {
+      userMessage,
+      assistantMessage,
+    };
+  }
+
+  /**
+   * 会話履歴を取得
+   * @param conversationId - 会話ID
+   * @returns メッセージのリスト
+   */
+  async getMessageHistory(conversationId: string): Promise<Message[]> {
+    logger.debug({ conversationId }, 'Fetching message history');
+
+    return await messageRepository.findByConversationId(conversationId);
+  }
+
+  /**
+   * 特定のメッセージを取得
+   * @param messageId - メッセージID
+   * @returns メッセージ
+   */
+  async getMessage(messageId: string): Promise<Message | null> {
+    return await messageRepository.findById(messageId);
+  }
+}
+
+// シングルトンインスタンス
+export const chatService = new ChatService();

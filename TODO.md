@@ -74,13 +74,13 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 2.1 基本インフラストラクチャ
 
-- [ ] `api/src/lib/prisma.ts` を作成
+- [x] `api/src/lib/prisma.ts` を作成
   - PrismaClientのシングルトンインスタンス
   - グレースフルシャットダウン処理
-- [ ] `api/src/lib/logger.ts` を作成
+- [x] `api/src/lib/logger.ts` を作成
   - Pinoロガーの設定
   - 開発/本番環境の切り替え
-- [ ] `api/src/lib/mastra.ts` を作成
+- [x] `api/src/lib/mastra.ts` を作成
   - Mastraクライアントの初期化
   - Claude API設定
 
@@ -88,12 +88,12 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 2.2 リポジトリ層の実装
 
-- [ ] `api/src/repositories/conversation.repository.ts` を作成
+- [x] `api/src/repositories/conversation.repository.ts` を作成
   - create(): 会話作成
   - findById(): ID検索
   - findBySessionId(): セッションID検索
   - updateTitle(): タイトル更新
-- [ ] `api/src/repositories/message.repository.ts` を作成
+- [x] `api/src/repositories/message.repository.ts` を作成
   - create(): メッセージ作成
   - findByConversationId(): 会話IDでメッセージ取得
   - count(): メッセージ数カウント
@@ -102,11 +102,11 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 2.3 サービス層の実装
 
-- [ ] `api/src/services/conversation.service.ts` を作成
+- [x] `api/src/services/conversation.service.ts` を作成
   - create(): 会話作成（sessionId生成含む）
   - getById(): 会話とメッセージ取得
   - getBySessionId(): セッションの全会話取得
-- [ ] `api/src/services/chat.service.ts` を作成
+- [x] `api/src/services/chat.service.ts` を作成
   - sendMessage(): ユーザーメッセージ保存、AI応答生成、AIメッセージ保存
   - 会話履歴取得とMastra連携
   - 自動タイトル生成（最初のメッセージ時）
@@ -115,12 +115,12 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 2.4 ミドルウェアの実装
 
-- [ ] `api/src/middleware/error-handler.ts` を作成
+- [x] `api/src/middleware/error-handler.ts` を作成
   - Zodバリデーションエラー処理
   - カスタムエラー処理
   - AI APIエラー処理
   - 内部サーバーエラー処理
-- [ ] `api/src/middleware/rate-limit.ts` を作成
+- [x] `api/src/middleware/rate-limit.ts` を作成
   - インメモリレート制限実装
   - IP別のリクエスト制限
 
@@ -128,28 +128,28 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 2.5 ルート定義
 
-- [ ] `api/src/routes/conversations.ts` を作成
+- [x] `api/src/routes/conversations.ts` を作成
   - POST /api/conversations - 会話作成
   - GET /api/conversations/:conversationId - 会話取得
   - POST /api/conversations/:conversationId/messages - メッセージ送信
   - Zodスキーマバリデーション
-- [ ] `api/src/routes/sessions.ts` を作成
+- [x] `api/src/routes/sessions.ts` を作成
   - GET /api/sessions/:sessionId/conversations - セッション会話一覧
-- [ ] `api/src/routes/health.ts` を作成
+- [x] `api/src/routes/health.ts` を作成
   - GET /api/health - ヘルスチェック
 
 ---
 
 ### 2.6 アプリケーションエントリポイント
 
-- [ ] `api/src/app.ts` を作成
+- [x] `api/src/app.ts` を作成
   - Honoアプリ初期化
   - CORS設定
   - ロギングミドルウェア
   - レート制限ミドルウェア
   - ルート登録
   - エラーハンドリング
-- [ ] `api/src/index.ts` を作成
+- [x] `api/src/index.ts` を作成
   - サーバー起動処理
   - ポート設定
 
