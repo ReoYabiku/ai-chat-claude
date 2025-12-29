@@ -1,0 +1,12 @@
+# pnpm Workspace Configuration
+# AI Chat Claude - Monorepo Setup
+
+packages:
+  # フロントエンド（Next.js）
+  - 'frontend'
+
+  # バックエンド（Hono API）
+  - 'api'
+
+  # 共通コード（型定義、ユーティリティ）
+  - 'shared'

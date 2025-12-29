@@ -1,0 +1,38 @@
+{
+  "name": "@ai-chat-claude/api",
+  "version": "1.0.0",
+  "description": "API server for AI Chat Claude",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "api",
+    "hono",
+    "prisma"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ai-chat-claude/shared": "workspace:*",
+    "@ai-sdk/anthropic": "^1.0.8",
+    "@mastra/core": "^0.24.9",
+    "@prisma/client": "^6.2.1",
+    "hono": "^4.6.18",
+    "mastra": "^0.18.9",
+    "pino": "^9.5.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "prisma": "^6.2.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
