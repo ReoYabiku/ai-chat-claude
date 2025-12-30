@@ -3,6 +3,7 @@ import { conversationRepository } from '../repositories/conversation.repository'
 import { generateChatResponse, generateConversationTitle } from '../lib/mastra';
 import { Message, Role } from '@prisma/client';
 import { logger } from '../lib/logger';
+import { AI_MODEL } from '../lib/constants';
 
 export interface SendMessageResult {
   userMessage: Message;
@@ -65,7 +66,7 @@ export class ChatService {
       role: Role.ASSISTANT,
       content: aiResponseContent,
       metadata: {
-        model: 'claude-3-5-sonnet-20241022',
+        model: AI_MODEL.VERSION,
         timestamp: new Date().toISOString(),
       },
     });

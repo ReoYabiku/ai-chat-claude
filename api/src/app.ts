@@ -8,6 +8,7 @@ import healthRoutes from './routes/health';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limit';
 import { logger } from './lib/logger';
+import { env } from './utils/env-validation';
 
 // Honoアプリケーションの初期化
 const app = new Hono();
@@ -15,17 +16,33 @@ const app = new Hono();
 // グローバルミドルウェア
 
 // 1. CORS設定
+const allowedOrigins =
+  env.NODE_ENV === 'production'
+    ? env.ALLOWED_ORIGINS
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 app.use(
   '/*',
   cors({
-    origin:
-      process.env.FRONTEND_URL ||
-      process.env.NODE_ENV === 'development'
-        ? ['http://localhost:3000', 'http://127.0.0.1:3000']
-        : [],
+    origin: (origin) => {
+      // オリジンなし（モバイルアプリやcurlなど）は許可
+      if (!origin) return origin;
+
+      // 許可リストにあれば許可
+      if (allowedOrigins.includes(origin)) return origin;
+
+      // 開発環境では拒否されたオリジンをログ出力
+      if (env.NODE_ENV === 'development') {
+        console.warn(`CORS: Rejected origin: ${origin}`);
+      }
+
+      return allowedOrigins[0] || '';
+    },
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
   })
 );
 
@@ -33,7 +50,7 @@ app.use(
 app.use('/*', honoLogger());
 
 // 3. JSONのプリティプリント（開発環境のみ）
-if (process.env.NODE_ENV === 'development') {
+if (env.NODE_ENV === 'development') {
   app.use('/*', prettyJSON());
 }
 

@@ -13,12 +13,13 @@ datasource db {
 // 会話セッション
 model Conversation {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  sessionId String
+  sessionId String    @unique
   title     String?   // 会話のタイトル（最初のメッセージから生成）
   messages  Message[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([updatedAt(sort: Desc)])
   @@map("conversations")
 }
 
@@ -32,6 +33,7 @@ model Message {
   metadata       Json?        // 追加情報（model名、token数など）
   createdAt      DateTime     @default(now())
 
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 

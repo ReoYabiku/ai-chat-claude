@@ -2,33 +2,17 @@ import { serve } from '@hono/node-server';
 import app from './app';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
-
-// 環境変数の検証
-function validateEnvironment() {
-  const requiredEnvVars = ['DATABASE_URL', 'ANTHROPIC_API_KEY'];
-  const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]);
-
-  if (missing.length > 0) {
-    logger.error(
-      { missingVars: missing },
-      'Missing required environment variables'
-    );
-    process.exit(1);
-  }
-}
+import { env } from './utils/env-validation';
 
 // サーバー起動
 async function startServer() {
   try {
-    // 環境変数チェック
-    validateEnvironment();
-
     // データベース接続確認
     await prisma.$connect();
     logger.info('Database connection established');
 
-    // ポート設定
-    const port = parseInt(process.env.PORT || '3001', 10);
+    // ポート設定（環境変数は起動時にバリデーション済み）
+    const port = env.PORT;
 
     // サーバー起動
     serve(
@@ -40,7 +24,7 @@ async function startServer() {
         logger.info(
           {
             port: info.port,
-            environment: process.env.NODE_ENV || 'development',
+            environment: env.NODE_ENV,
           },
           `Server is running on http://localhost:${info.port}`
         );

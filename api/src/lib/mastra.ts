@@ -1,19 +1,14 @@
 import { Agent } from '@mastra/core/agent';
 import { logger } from './logger';
-
-if (!process.env.ANTHROPIC_API_KEY) {
-  throw new Error('ANTHROPIC_API_KEY environment variable is required');
-}
+import { AI_MODEL, AI_CONFIG } from './constants';
+import { env } from '../utils/env-validation';
 
 // Claude 4.5 Sonnet エージェントの作成
 export const chatAgent = new Agent({
   id: 'chat-agent',
   name: 'AI Chat Assistant',
-  instructions: `あなたは親切で役立つ日本語アシスタントです。
-ユーザーの質問や要求に対して、自然で分かりやすい回答を心がけてください。
-必要に応じて英語でも対応できます。
-丁寧で親しみやすいトーンで会話してください。`,
-  model: 'anthropic/claude-sonnet-4-5-20250929',
+  instructions: AI_CONFIG.DEFAULT_SYSTEM_PROMPT,
+  model: AI_MODEL.PROVIDER_ID,
 });
 
 /**
@@ -27,12 +22,21 @@ export async function generateChatResponse(
   try {
     logger.debug({ messageCount: messages.length }, 'Generating chat response');
 
-    const response = await chatAgent.generate(
-      messages.map((msg) => ({
-        role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
-        content: msg.content,
-      }))
+    // 最後のユーザーメッセージを取得
+    const lastMessage = messages[messages.length - 1];
+
+    // 会話履歴を文字列配列に変換（最後のメッセージ以外）
+    const conversationHistory = messages.slice(0, -1).map(
+      (msg) => `${msg.role}: ${msg.content}`
     );
+
+    // コンテキストとして履歴を含めたプロンプトを作成
+    const prompt =
+      conversationHistory.length > 0
+        ? [...conversationHistory, lastMessage.content]
+        : [lastMessage.content];
+
+    const response = await chatAgent.generate(prompt);
 
     logger.debug(
       { responseLength: response.text?.length || 0 },
@@ -60,14 +64,11 @@ export async function generateConversationTitle(
       name: 'Title Generator',
       instructions:
         'あなたは会話のタイトルを生成するアシスタントです。ユーザーの最初のメッセージから、短くて分かりやすいタイトル（10-30文字程度）を日本語で生成してください。タイトルのみを返してください。',
-      model: 'anthropic/claude-sonnet-4-5-20250929',
+      model: AI_MODEL.PROVIDER_ID,
     });
 
     const response = await titleAgent.generate([
-      {
-        role: 'user',
-        content: `次のメッセージから会話のタイトルを生成してください: "${firstMessage}"`,
-      },
+      `次のメッセージから会話のタイトルを生成してください: "${firstMessage}"`,
     ]);
 
     const title = response.text?.trim() || '新しい会話';

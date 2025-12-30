@@ -1,86 +1,116 @@
-import { Context, Next } from 'hono';
-import { logger } from '../lib/logger';
+import type { MiddlewareHandler } from 'hono';
+import { env } from '../utils/env-validation';
+import Redis from 'ioredis';
 
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
+// Redis client (only create if URL provided)
+let redis: Redis | null = null;
+
+if (env.REDIS_URL) {
+  redis = new Redis(env.REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    lazyConnect: true,
+  });
+
+  redis.on('error', (err) => {
+    console.error('Redis error:', err);
+  });
+
+  redis.on('connect', () => {
+    console.log('✓ Redis connected for rate limiting');
+  });
 }
 
-const store: RateLimitStore = {};
+// Redis-based store for production
+class RedisStore {
+  private redis: Redis;
+  private windowMs: number;
 
-// 定期的にストアをクリーンアップ（メモリリーク防止）
-setInterval(() => {
-  const now = Date.now();
-  Object.keys(store).forEach((key) => {
-    if (store[key].resetTime < now) {
-      delete store[key];
-    }
-  });
-}, 60000); // 1分ごとにクリーンアップ
+  constructor(redis: Redis, windowMs: number) {
+    this.redis = redis;
+    this.windowMs = windowMs;
+  }
 
-/**
- * レート制限ミドルウェア
- * @param options - レート制限オプション
- */
-export function rateLimiter(options?: {
-  max?: number;
-  windowMs?: number;
-  keyGenerator?: (c: Context) => string;
-}) {
-  const max = options?.max || parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
-  const windowMs =
-    options?.windowMs || parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10);
-  const keyGenerator =
-    options?.keyGenerator ||
-    ((c: Context) => {
-      // デフォルトはIPアドレスベース
-      return (
-        c.req.header('x-forwarded-for') ||
-        c.req.header('x-real-ip') ||
-        'unknown'
-      );
-    });
-
-  return async (c: Context, next: Next) => {
-    const key = keyGenerator(c);
+  async increment(key: string): Promise<{ count: number; resetTime: Date }> {
+    const redisKey = `rate-limit:${key}`;
     const now = Date.now();
+    const windowStart = now - this.windowMs;
 
-    // ストアの初期化または更新
-    if (!store[key] || store[key].resetTime < now) {
-      store[key] = {
-        count: 1,
-        resetTime: now + windowMs,
-      };
-    } else {
-      store[key].count += 1;
+    // Use Redis sorted set for sliding window
+    const multi = this.redis.multi();
+
+    // Remove old entries
+    multi.zremrangebyscore(redisKey, 0, windowStart);
+
+    // Add current request
+    multi.zadd(redisKey, now, `${now}`);
+
+    // Count requests in window
+    multi.zcard(redisKey);
+
+    // Set expiry
+    multi.expire(redisKey, Math.ceil(this.windowMs / 1000));
+
+    const results = await multi.exec();
+    const count = (results?.[2]?.[1] as number) || 0;
+
+    return {
+      count,
+      resetTime: new Date(now + this.windowMs),
+    };
+  }
+}
+
+// In-memory store for development
+class MemoryStore {
+  private store = new Map<string, { count: number; resetTime: number }>();
+  private windowMs: number;
+
+  constructor(windowMs: number) {
+    this.windowMs = windowMs;
+  }
+
+  async increment(key: string): Promise<{ count: number; resetTime: Date }> {
+    const now = Date.now();
+    const record = this.store.get(key);
+
+    if (!record || now > record.resetTime) {
+      const resetTime = now + this.windowMs;
+      this.store.set(key, { count: 1, resetTime });
+      return { count: 1, resetTime: new Date(resetTime) };
     }
 
-    const current = store[key];
+    record.count++;
+    return { count: record.count, resetTime: new Date(record.resetTime) };
+  }
+}
 
-    // レスポンスヘッダーを設定
-    c.header('X-RateLimit-Limit', max.toString());
-    c.header('X-RateLimit-Remaining', Math.max(0, max - current.count).toString());
+export function rateLimiter(): MiddlewareHandler {
+  const store = redis
+    ? new RedisStore(redis, env.RATE_LIMIT_WINDOW_MS)
+    : new MemoryStore(env.RATE_LIMIT_WINDOW_MS);
+
+  if (!redis && env.NODE_ENV === 'production') {
+    console.warn('⚠️  WARNING: Using in-memory rate limiter in production!');
+    console.warn('   Set REDIS_URL for distributed rate limiting.');
+  }
+
+  return async (c, next) => {
+    const key =
+      c.req.header('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const result = await store.increment(key);
+
+    c.header('X-RateLimit-Limit', env.RATE_LIMIT_MAX.toString());
     c.header(
-      'X-RateLimit-Reset',
-      Math.ceil(current.resetTime / 1000).toString()
+      'X-RateLimit-Remaining',
+      Math.max(0, env.RATE_LIMIT_MAX - result.count).toString()
     );
+    c.header('X-RateLimit-Reset', result.resetTime.toISOString());
 
-    // レート制限超過チェック
-    if (current.count > max) {
-      logger.warn(
-        { key, count: current.count, max },
-        'Rate limit exceeded'
-      );
-
+    if (result.count > env.RATE_LIMIT_MAX) {
       return c.json(
         {
-          error: {
-            code: 'RATE_LIMIT',
-            message: 'Too many requests. Please try again later.',
-            retryAfter: Math.ceil((current.resetTime - now) / 1000),
-          },
+          error: 'Too many requests',
+          retryAfter: result.resetTime.toISOString(),
         },
         429
       );
@@ -90,19 +120,9 @@ export function rateLimiter(options?: {
   };
 }
 
-/**
- * ストアの統計情報を取得（デバッグ用）
- */
-export function getRateLimitStats() {
-  return {
-    totalKeys: Object.keys(store).length,
-    store: { ...store },
-  };
-}
-
-/**
- * ストアをクリア（テスト用）
- */
-export function clearRateLimitStore() {
-  Object.keys(store).forEach((key) => delete store[key]);
+// Export for cleanup in tests
+export function closeRedis(): void {
+  if (redis) {
+    redis.disconnect();
+  }
 }

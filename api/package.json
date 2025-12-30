@@ -7,6 +7,7 @@
     "dev": "dotenv -e ../.env -- tsx watch src/index.ts",
     "build": "tsc",
     "start": "dotenv -e ../.env -- node dist/index.js",
+    "check-schema": "dotenv -e ../.env -- tsx scripts/check-and-fix-schema.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
@@ -27,12 +28,14 @@
     "@prisma/client": "^6.2.1",
     "dotenv": "^17.2.3",
     "hono": "^4.6.18",
+    "ioredis": "^5.8.2",
     "mastra": "^0.18.9",
     "pino": "^9.5.0",
     "uuid": "^11.1.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/ioredis": "^5.0.0",
     "@types/node": "^22.10.5",
     "dotenv-cli": "^11.0.0",
     "pino-pretty": "^13.1.3",
