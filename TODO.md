@@ -54,7 +54,7 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
   - Message モデル定義
   - Role enum定義
 - [x] Prisma Client生成: `cd api && pnpm prisma generate`
-- [ ] MongoDBスキーマ同期: `cd api && pnpm prisma db push` (Phase 4で環境変数設定後に実行)
+- [x] MongoDBスキーマ同期: `cd api && pnpm prisma db push` (Phase 4で環境変数設定後に実行)
 
 ---
 
@@ -251,33 +251,33 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 4.2 環境変数設定
 
-- [ ] `.env` ファイルを作成（`.env.example`をコピー）
-- [ ] `DATABASE_URL` を設定（MongoDB Atlas接続文字列）
-- [ ] `CLAUDE_API_KEY` を設定（Anthropic APIキー）
-- [ ] その他の環境変数を適宜設定
+- [x] `.env` ファイルを作成（`.env.example`をコピー）
+- [x] `DATABASE_URL` を設定（MongoDB Atlas接続文字列）
+- [x] `CLAUDE_API_KEY` を設定（Anthropic APIキー）
+- [x] その他の環境変数を適宜設定
 
 ---
 
 ### 4.3 開発サーバー起動と動作確認
 
-- [ ] APIサーバーを起動: `cd api && pnpm dev`
-- [ ] Frontendサーバーを起動: `cd frontend && pnpm dev`
-- [ ] ブラウザで http://localhost:3000 にアクセス
-- [ ] メッセージ送信機能の動作確認
-- [ ] AI応答の受信確認
-- [ ] 会話履歴の保存確認
-- [ ] 新規会話作成の確認
-- [ ] ブラウザリロード後の会話復元確認
+- [x] APIサーバーを起動: `cd api && pnpm dev`
+- [x] Frontendサーバーを起動: `cd frontend && pnpm dev`
+- [x] ブラウザで http://localhost:3000 にアクセス
+- [x] メッセージ送信機能の動作確認
+- [x] AI応答の受信確認
+- [x] 会話履歴の保存確認
+- [x] 新規会話作成の確認
+- [x] ブラウザリロード後の会話復元確認
 
 ---
 
 ### 4.4 エラーハンドリングのテスト
 
-- [ ] ネットワークエラー時のエラーメッセージ表示確認
-- [ ] 空メッセージ送信の防止確認
-- [ ] 長すぎるメッセージの制限確認
-- [ ] データベース接続エラーのハンドリング確認
-- [ ] API制限超過時の適切なエラー表示確認
+- [x] ネットワークエラー時のエラーメッセージ表示確認
+- [x] 空メッセージ送信の防止確認
+- [x] 長すぎるメッセージの制限確認
+- [x] データベース接続エラーのハンドリング確認
+- [x] API制限超過時の適切なエラー表示確認
 
 ---
 
