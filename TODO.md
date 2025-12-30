@@ -159,14 +159,14 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 3.1 ユーティリティとヘルパー
 
-- [ ] `frontend/src/lib/utils.ts` を作成
+- [x] `frontend/src/lib/utils.ts` を作成
   - cn(): Tailwindクラス結合関数
   - formatDate(): 日付フォーマット関数
-- [ ] `frontend/src/lib/constants.ts` を作成
+- [x] `frontend/src/lib/constants.ts` を作成
   - API_URL, APP_NAME, APP_VERSION
   - ストレージキー定義
   - UI関連定数
-- [ ] `frontend/src/lib/api-client.ts` を作成
+- [x] `frontend/src/lib/api-client.ts` を作成
   - ApiClientクラス実装
   - createConversation()
   - sendMessage()
@@ -177,48 +177,48 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 3.2 カスタムフック
 
-- [ ] `frontend/src/hooks/useSession.ts` を作成
+- [x] `frontend/src/hooks/useSession.ts` を作成
   - sessionId管理（LocalStorage）
   - conversationId管理
   - saveConversationId()
   - clearConversationId()
-- [ ] `frontend/src/hooks/useChat.ts` を作成
+- [x] `frontend/src/hooks/useChat.ts` を作成
   - messages状態管理
   - sendMessage()関数
   - isLoading, error状態
   - 会話履歴の読み込み
-- [ ] `frontend/src/hooks/useAutoScroll.ts` を作成
+- [x] `frontend/src/hooks/useAutoScroll.ts` を作成
   - 自動スクロール機能
 
 ---
 
 ### 3.3 UIコンポーネント
 
-- [ ] `frontend/src/components/ui/Button.tsx` を作成
+- [x] `frontend/src/components/ui/Button.tsx` を作成
   - variant: primary, secondary, ghost
   - size: sm, md, lg
-- [ ] `frontend/src/components/ui/Input.tsx` を作成
+- [x] `frontend/src/components/ui/Input.tsx` を作成
   - 基本入力フィールドコンポーネント
 
 ---
 
 ### 3.4 チャットコンポーネント
 
-- [ ] `frontend/src/components/chat/MessageItem.tsx` を作成
+- [x] `frontend/src/components/chat/MessageItem.tsx` を作成
   - メッセージ表示（ユーザー/AI別スタイル）
   - タイムスタンプ表示
-- [ ] `frontend/src/components/chat/TypingIndicator.tsx` を作成
+- [x] `frontend/src/components/chat/TypingIndicator.tsx` を作成
   - ローディングアニメーション
-- [ ] `frontend/src/components/chat/MessageList.tsx` を作成
+- [x] `frontend/src/components/chat/MessageList.tsx` を作成
   - メッセージ配列表示
   - 自動スクロール
   - 空状態の表示
-- [ ] `frontend/src/components/chat/MessageInput.tsx` を作成
+- [x] `frontend/src/components/chat/MessageInput.tsx` を作成
   - テキストエリア
   - 送信ボタン
   - 文字数カウント
   - Enter送信、Shift+Enter改行
-- [ ] `frontend/src/components/chat/ChatContainer.tsx` を作成
+- [x] `frontend/src/components/chat/ChatContainer.tsx` を作成
   - 全体のチャットUI統合
   - useChat, useSession連携
   - エラー表示
@@ -228,14 +228,14 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 3.5 レイアウトとページ
 
-- [ ] `frontend/src/app/globals.css` を作成
+- [x] `frontend/src/app/globals.css` を作成
   - Tailwind directives
   - ベーススタイル
-- [ ] `frontend/src/app/layout.tsx` を作成
+- [x] `frontend/src/app/layout.tsx` を作成
   - ルートレイアウト
   - メタデータ設定
   - フォント設定
-- [ ] `frontend/src/app/page.tsx` を作成
+- [x] `frontend/src/app/page.tsx` を作成
   - ChatContainerの配置
 
 ---
