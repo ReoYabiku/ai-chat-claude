@@ -44,7 +44,7 @@ export function MessageInput({ onSend, isLoading = false, disabled = false, clas
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -107,8 +107,8 @@ export function MessageInput({ onSend, isLoading = false, disabled = false, clas
 
         <p className="text-xs text-gray-500">
           Press <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd>{' '}
-          to send, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Shift+Enter</kbd>{' '}
-          for new line
+          for new line, <kbd className="px-1 py-0.5 bg-gray-100 border border-gray-300 rounded">Shift+Enter</kbd>{' '}
+          to send
         </p>
       </div>
     </div>
