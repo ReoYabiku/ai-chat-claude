@@ -51,6 +51,52 @@ export async function generateChatResponse(
 }
 
 /**
+ * チャット応答をストリーミングで生成する
+ * @param messages - 会話履歴（role, contentを含むオブジェクトの配列）
+ * @returns AI生成のレスポンスストリーム（AsyncIterable）
+ */
+export async function* streamChatResponse(
+  messages: Array<{ role: string; content: string }>
+): AsyncIterable<string> {
+  try {
+    logger.debug({ messageCount: messages.length }, 'Starting chat response stream');
+
+    // 最後のユーザーメッセージを取得
+    const lastMessage = messages[messages.length - 1];
+
+    // 会話履歴を文字列配列に変換（最後のメッセージ以外）
+    const conversationHistory = messages.slice(0, -1).map(
+      (msg) => `${msg.role}: ${msg.content}`
+    );
+
+    // コンテキストとして履歴を含めたプロンプトを作成
+    const prompt =
+      conversationHistory.length > 0
+        ? [...conversationHistory, lastMessage.content]
+        : [lastMessage.content];
+
+    // ストリーミングレスポンスを生成
+    const stream = await chatAgent.stream(prompt);
+
+    let totalLength = 0;
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        totalLength += chunk.text.length;
+        yield chunk.text;
+      }
+    }
+
+    logger.debug(
+      { totalLength },
+      'Chat response stream completed'
+    );
+  } catch (error) {
+    logger.error({ error }, 'Failed to stream chat response');
+    throw new Error('Failed to generate AI response');
+  }
+}
+
+/**
  * 会話タイトルを自動生成する
  * @param firstMessage - 最初のユーザーメッセージ
  * @returns 生成されたタイトル

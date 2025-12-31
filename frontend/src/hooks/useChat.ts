@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Message } from '@ai-chat-claude/shared';
 import { apiClient, ApiClientError } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
@@ -23,6 +23,7 @@ export function useChat({ conversationId, onError }: UseChatOptions): UseChatRet
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const loadConversation = async () => {
@@ -59,6 +60,16 @@ export function useChat({ conversationId, onError }: UseChatOptions): UseChatRet
     loadConversation();
   }, [conversationId, onError]);
 
+  // コンポーネントアンマウント時にストリーミングをキャンセル
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        logger.info('Streaming aborted due to component unmount');
+      }
+    };
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!conversationId) {
@@ -75,24 +86,85 @@ export function useChat({ conversationId, onError }: UseChatOptions): UseChatRet
         throw error;
       }
 
+      // ストリーミング用の一時的なアシスタントメッセージ
+      let streamingMessageId: string | null = null;
+      let streamingContent = '';
+      let isStreamComplete = false;
+
+      // AbortControllerを作成してrefに保存
+      abortControllerRef.current = new AbortController();
+
       try {
         setIsLoading(true);
         setError(null);
 
-        const response = await apiClient.sendMessage(conversationId, content);
+        // 一時メッセージIDを生成（タイムスタンプとランダム値で一意性を確保）
+        const tempId = `streaming-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-        const userMessage: Message = {
-          ...response.userMessage,
-          createdAt: new Date(response.userMessage.createdAt),
-        };
+        await apiClient.sendMessageStream(conversationId, content, {
+          signal: abortControllerRef.current.signal,
+          onUserMessage: (userMessageData) => {
+            const userMessage: Message = {
+              ...userMessageData,
+              createdAt: new Date(userMessageData.createdAt),
+            };
+            setMessages((prev) => [...prev, userMessage]);
+            logger.info('User message added');
+          },
+          onChunk: (chunk: string) => {
+            streamingContent += chunk;
 
-        const assistantMessage: Message = {
-          ...response.assistantMessage,
-          createdAt: new Date(response.assistantMessage.createdAt),
-        };
+            if (!streamingMessageId) {
+              // 一時的なストリーミングメッセージを作成
+              streamingMessageId = tempId;
+              const tempMessage: Message = {
+                id: streamingMessageId,
+                conversationId: conversationId,
+                role: 'ASSISTANT' as any,
+                content: streamingContent,
+                createdAt: new Date(),
+              };
+              setMessages((prev) => [...prev, tempMessage]);
+            } else {
+              // 既存のストリーミングメッセージを更新
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: streamingContent }
+                    : msg
+                )
+              );
+            }
+          },
+          onDone: (data) => {
+            const assistantMessage: Message = {
+              ...data.assistantMessage,
+              createdAt: new Date(data.assistantMessage.createdAt),
+            };
 
-        setMessages((prev) => [...prev, userMessage, assistantMessage]);
-        logger.info('Message sent successfully');
+            // 一時メッセージを最終メッセージに置き換え
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === streamingMessageId ? assistantMessage : msg
+              )
+            );
+            isStreamComplete = true;
+            logger.info('Streaming completed successfully');
+          },
+          onError: (err) => {
+            const error = new Error(err.message);
+            setError(error);
+            logger.error('Streaming failed:', error);
+            if (onError) onError(error);
+
+            // エラー時は一時メッセージを削除
+            if (streamingMessageId) {
+              setMessages((prev) =>
+                prev.filter((msg) => msg.id !== streamingMessageId)
+              );
+            }
+          },
+        });
       } catch (err) {
         let error: Error;
         if (err instanceof ApiClientError) {
@@ -106,9 +178,19 @@ export function useChat({ conversationId, onError }: UseChatOptions): UseChatRet
         setError(error);
         logger.error('Failed to send message:', error);
         if (onError) onError(error);
+
+        // エラー時は一時メッセージを削除
+        if (streamingMessageId && !isStreamComplete) {
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== streamingMessageId)
+          );
+        }
+
         throw error;
       } finally {
         setIsLoading(false);
+        // ストリーミング完了後はAbortControllerをクリア
+        abortControllerRef.current = null;
       }
     },
     [conversationId, onError]

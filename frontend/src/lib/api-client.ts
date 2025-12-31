@@ -8,6 +8,8 @@ import {
   type HealthCheckResponse,
   type ApiError,
   ErrorCodes,
+  StreamEventType,
+  type StreamEvent,
 } from '@ai-chat-claude/shared';
 import { API_URL, API_ENDPOINTS } from './constants';
 
@@ -114,6 +116,123 @@ export class ApiClient {
     return this.request<HealthCheckResponse>(API_ENDPOINTS.HEALTH, {
       method: 'GET',
     });
+  }
+
+  /**
+   * メッセージをストリーミングで送信
+   * @param conversationId - 会話ID
+   * @param content - メッセージ内容
+   * @param callbacks - コールバック関数とオプション
+   * @returns クリーンアップ関数
+   */
+  async sendMessageStream(
+    conversationId: string,
+    content: string,
+    callbacks: {
+      onChunk: (chunk: string) => void;
+      onUserMessage: (message: any) => void;
+      onDone: (data: { userMessage: any; assistantMessage: any }) => void;
+      onError?: (error: Error) => void;
+      signal?: AbortSignal;
+    }
+  ): Promise<void> {
+    const url = `${this.baseUrl}/api/conversations/${conversationId}/messages/stream`;
+    const data: SendMessageRequest = { content };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        signal: callbacks.signal,
+      });
+
+      if (!response.ok) {
+        throw new ApiClientError(
+          ErrorCodes.INTERNAL_ERROR,
+          `HTTP ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new ApiClientError(
+          ErrorCodes.INTERNAL_ERROR,
+          'Response body is not readable'
+        );
+      }
+
+      let buffer = '';
+
+      while (true) {
+        // AbortSignalをチェック
+        if (callbacks.signal?.aborted) {
+          reader.cancel();
+          break;
+        }
+
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+
+        // 最後の不完全な行を保持
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const event: StreamEvent = JSON.parse(data);
+
+              switch (event.type) {
+                case StreamEventType.USER_MESSAGE:
+                  callbacks.onUserMessage(event.data);
+                  break;
+                case StreamEventType.CHUNK:
+                  callbacks.onChunk(event.data);
+                  break;
+                case StreamEventType.DONE:
+                  callbacks.onDone(event.data);
+                  break;
+                case StreamEventType.ERROR:
+                  if (callbacks.onError) {
+                    callbacks.onError(new Error(event.data));
+                  }
+                  break;
+              }
+            } catch (parseError) {
+              console.error('Failed to parse SSE data:', parseError);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (callbacks.onError) {
+        if (error instanceof ApiClientError) {
+          callbacks.onError(error);
+        } else {
+          callbacks.onError(
+            new ApiClientError(
+              ErrorCodes.INTERNAL_ERROR,
+              error instanceof Error ? error.message : 'Unknown error occurred'
+            )
+          );
+        }
+      }
+      throw error;
+    }
   }
 }
 

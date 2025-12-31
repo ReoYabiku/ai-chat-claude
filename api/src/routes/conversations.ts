@@ -4,6 +4,7 @@ import { conversationService } from '../services/conversation.service';
 import { chatService } from '../services/chat.service';
 import { asyncHandler } from '../middleware/error-handler';
 import { logger } from '../lib/logger';
+import { stream } from 'hono/streaming';
 
 const app = new Hono();
 
@@ -121,6 +122,44 @@ app.post(
         metadata: assistantMessage.metadata,
         createdAt: assistantMessage.createdAt,
       },
+    });
+  })
+);
+
+/**
+ * POST /api/conversations/:conversationId/messages/stream
+ * メッセージをストリーミングで送信してAI応答を取得
+ */
+app.post(
+  '/:conversationId/messages/stream',
+  asyncHandler(async (c) => {
+    const conversationId = c.req.param('conversationId');
+    const body = await c.req.json();
+    const validated = sendMessageSchema.parse(body);
+
+    logger.info({ conversationId }, 'Sending message via streaming API');
+
+    return stream(c, async (stream) => {
+      try {
+        for await (const event of chatService.sendMessageStream(
+          conversationId,
+          validated.content
+        )) {
+          // Server-Sent Events (SSE) フォーマットでデータを送信
+          const data = JSON.stringify(event);
+          await stream.write(`data: ${data}\n\n`);
+        }
+
+        // ストリーム終了
+        await stream.write('data: [DONE]\n\n');
+      } catch (error) {
+        logger.error({ error, conversationId }, 'Streaming error');
+        const errorData = JSON.stringify({
+          type: 'error',
+          data: error instanceof Error ? error.message : 'Unknown error',
+        });
+        await stream.write(`data: ${errorData}\n\n`);
+      }
     });
   })
 );

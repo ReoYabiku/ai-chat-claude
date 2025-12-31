@@ -13,4 +13,7 @@ export {
   type ApiError,
   ErrorCodes,
   type ErrorCode,
+  StreamEventType,
+  type StreamEvent,
+  type StreamDoneResponse,
 } from './types/api';
