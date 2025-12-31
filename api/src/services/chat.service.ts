@@ -1,9 +1,25 @@
 import { messageRepository } from '../repositories/message.repository';
 import { conversationRepository } from '../repositories/conversation.repository';
-import { generateChatResponse, streamChatResponse, generateConversationTitle } from '../lib/mastra';
+import { generateChatResponse, streamChatResponse, generateConversationTitle, ChatMessage } from '../lib/mastra';
 import { Message, Role } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { AI_MODEL } from '../lib/constants';
+
+/**
+ * Prisma Role を Mastra ChatMessage role に変換
+ */
+function roleToMastraRole(role: Role): 'user' | 'assistant' | 'system' {
+  switch (role) {
+    case Role.USER:
+      return 'user';
+    case Role.ASSISTANT:
+      return 'assistant';
+    case Role.SYSTEM:
+      return 'system';
+    default:
+      return 'user';
+  }
+}
 
 export interface SendMessageResult {
   userMessage: Message;
@@ -48,8 +64,8 @@ export class ChatService {
     );
 
     // Mastraで応答を生成
-    const conversationMessages = messageHistory.map((msg) => ({
-      role: msg.role.toLowerCase(),
+    const conversationMessages: ChatMessage[] = messageHistory.map((msg) => ({
+      role: roleToMastraRole(msg.role),
       content: msg.content,
     }));
 
@@ -157,8 +173,8 @@ export class ChatService {
     );
 
     // Mastraで応答を生成
-    const conversationMessages = messageHistory.map((msg) => ({
-      role: msg.role.toLowerCase(),
+    const conversationMessages: ChatMessage[] = messageHistory.map((msg) => ({
+      role: roleToMastraRole(msg.role),
       content: msg.content,
     }));
 

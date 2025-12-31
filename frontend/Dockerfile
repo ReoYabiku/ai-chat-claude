@@ -46,6 +46,10 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME}
 ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
 
+# Build shared package first
+WORKDIR /app/shared
+RUN pnpm build
+
 # Build Next.js application (standalone output)
 WORKDIR /app/frontend
 RUN pnpm build
