@@ -79,20 +79,65 @@ export function useChat({ conversationId, onError }: UseChatOptions): UseChatRet
         setIsLoading(true);
         setError(null);
 
-        const response = await apiClient.sendMessage(conversationId, content);
+        // ストリーミング用の一時的なアシスタントメッセージ
+        let streamingMessageId: string | null = null;
+        let streamingContent = '';
 
-        const userMessage: Message = {
-          ...response.userMessage,
-          createdAt: new Date(response.userMessage.createdAt),
-        };
+        await apiClient.sendMessageStream(conversationId, content, {
+          onUserMessage: (userMessageData) => {
+            const userMessage: Message = {
+              ...userMessageData,
+              createdAt: new Date(userMessageData.createdAt),
+            };
+            setMessages((prev) => [...prev, userMessage]);
+            logger.info('User message added');
+          },
+          onChunk: (chunk: string) => {
+            streamingContent += chunk;
 
-        const assistantMessage: Message = {
-          ...response.assistantMessage,
-          createdAt: new Date(response.assistantMessage.createdAt),
-        };
+            if (!streamingMessageId) {
+              // 一時的なストリーミングメッセージを作成
+              streamingMessageId = 'streaming-temp';
+              const tempMessage: Message = {
+                id: streamingMessageId,
+                conversationId: conversationId,
+                role: 'ASSISTANT' as any,
+                content: streamingContent,
+                createdAt: new Date(),
+              };
+              setMessages((prev) => [...prev, tempMessage]);
+            } else {
+              // 既存のストリーミングメッセージを更新
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === streamingMessageId
+                    ? { ...msg, content: streamingContent }
+                    : msg
+                )
+              );
+            }
+          },
+          onDone: (data) => {
+            const assistantMessage: Message = {
+              ...data.assistantMessage,
+              createdAt: new Date(data.assistantMessage.createdAt),
+            };
 
-        setMessages((prev) => [...prev, userMessage, assistantMessage]);
-        logger.info('Message sent successfully');
+            // 一時メッセージを最終メッセージに置き換え
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === streamingMessageId ? assistantMessage : msg
+              )
+            );
+            logger.info('Streaming completed successfully');
+          },
+          onError: (err) => {
+            const error = new Error(err.message);
+            setError(error);
+            logger.error('Streaming failed:', error);
+            if (onError) onError(error);
+          },
+        });
       } catch (err) {
         let error: Error;
         if (err instanceof ApiClientError) {

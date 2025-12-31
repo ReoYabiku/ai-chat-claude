@@ -36,9 +36,19 @@ export function MessageList({ messages, isLoading, className }: MessageListProps
         </div>
       )}
 
-      {messages.map((message) => (
-        <MessageItem key={message.id} message={message} />
-      ))}
+      {messages.map((message, index) => {
+        // 最後のメッセージがストリーミング中かどうかをチェック
+        const isLastMessage = index === messages.length - 1;
+        const isStreamingMessage = isLastMessage && message.id === 'streaming-temp';
+
+        return (
+          <MessageItem
+            key={message.id}
+            message={message}
+            isStreaming={isStreamingMessage}
+          />
+        );
+      })}
 
       {isLoading && (
         <div className="px-4 py-3">

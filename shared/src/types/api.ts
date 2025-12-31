@@ -57,6 +57,33 @@ export interface HealthCheckResponse {
 }
 
 /**
+ * ストリーミングチャンクの種類
+ */
+export enum StreamEventType {
+  CONTENT = 'content',
+  DONE = 'done',
+  ERROR = 'error',
+}
+
+/**
+ * ストリーミングチャンクレスポンス（Server-Sent Events）
+ */
+export interface StreamChunk {
+  type: StreamEventType;
+  content?: string;
+  messageId?: string;
+  error?: string;
+}
+
+/**
+ * ストリーミング完了レスポンス
+ */
+export interface StreamDoneResponse {
+  userMessage: Message;
+  assistantMessage: Message;
+}
+
+/**
  * APIエラーレスポンス
  */
 export interface ApiError {

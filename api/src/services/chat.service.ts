@@ -1,6 +1,6 @@
 import { messageRepository } from '../repositories/message.repository';
 import { conversationRepository } from '../repositories/conversation.repository';
-import { generateChatResponse, generateConversationTitle } from '../lib/mastra';
+import { generateChatResponse, streamChatResponse, generateConversationTitle } from '../lib/mastra';
 import { Message, Role } from '@prisma/client';
 import { logger } from '../lib/logger';
 import { AI_MODEL } from '../lib/constants';
@@ -115,6 +115,109 @@ export class ChatService {
    */
   async getMessage(messageId: string): Promise<Message | null> {
     return await messageRepository.findById(messageId);
+  }
+
+  /**
+   * ユーザーメッセージを送信し、AI応答をストリーミングで生成
+   * @param conversationId - 会話ID
+   * @param userContent - ユーザーメッセージ内容
+   * @yields AI応答のストリーミングチャンク
+   */
+  async *sendMessageStream(
+    conversationId: string,
+    userContent: string
+  ): AsyncIterable<{ type: 'userMessage' | 'chunk' | 'done'; data: any }> {
+    logger.info({ conversationId }, 'Processing user message with streaming');
+
+    // 会話が存在するか確認
+    const conversation = await conversationRepository.findById(conversationId);
+    if (!conversation) {
+      logger.error({ conversationId }, 'Conversation not found');
+      throw new Error('Conversation not found');
+    }
+
+    // ユーザーメッセージを保存
+    const userMessage = await messageRepository.create({
+      conversationId,
+      role: Role.USER,
+      content: userContent,
+    });
+
+    logger.debug(
+      { conversationId, messageId: userMessage.id },
+      'User message saved'
+    );
+
+    // ユーザーメッセージを送信
+    yield { type: 'userMessage', data: userMessage };
+
+    // 会話履歴を取得
+    const messageHistory = await messageRepository.findByConversationId(
+      conversationId
+    );
+
+    // Mastraで応答を生成
+    const conversationMessages = messageHistory.map((msg) => ({
+      role: msg.role.toLowerCase(),
+      content: msg.content,
+    }));
+
+    logger.debug(
+      { conversationId, historyLength: conversationMessages.length },
+      'Generating streaming AI response'
+    );
+
+    // ストリーミング応答を受信して送信
+    let fullResponse = '';
+    try {
+      for await (const chunk of streamChatResponse(conversationMessages)) {
+        fullResponse += chunk;
+        yield { type: 'chunk', data: chunk };
+      }
+    } catch (error) {
+      logger.error({ error, conversationId }, 'Streaming failed');
+      throw error;
+    }
+
+    // AI応答を保存
+    const assistantMessage = await messageRepository.create({
+      conversationId,
+      role: Role.ASSISTANT,
+      content: fullResponse,
+      metadata: {
+        model: AI_MODEL.VERSION,
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    logger.info(
+      { conversationId, assistantMessageId: assistantMessage.id },
+      'AI response generated and saved via streaming'
+    );
+
+    // 最初のメッセージの場合、タイトルを自動生成
+    const messageCount = await messageRepository.count(conversationId);
+    if (messageCount === 2 && !conversation.title) {
+      try {
+        const title = await generateConversationTitle(userContent);
+        await conversationRepository.updateTitle(conversationId, title);
+        logger.info({ conversationId, title }, 'Conversation title auto-generated');
+      } catch (error) {
+        logger.warn(
+          { error, conversationId },
+          'Failed to auto-generate title, continuing anyway'
+        );
+      }
+    }
+
+    // 完了メッセージを送信
+    yield {
+      type: 'done',
+      data: {
+        userMessage,
+        assistantMessage,
+      },
+    };
   }
 }
 
