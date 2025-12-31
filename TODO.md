@@ -285,11 +285,11 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 5.1 Dockerファイルの作成
 
-- [ ] `api/Dockerfile` を作成
+- [x] `api/Dockerfile` を作成
   - Multi-stage build
   - Prisma Client生成
   - 本番環境設定
-- [ ] `frontend/Dockerfile` を作成
+- [x] `frontend/Dockerfile` を作成
   - Next.js standalone出力
   - Multi-stage build
   - 本番環境設定
@@ -298,7 +298,7 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 5.2 Docker Compose（ローカルテスト用）
 
-- [ ] `docker-compose.yml` を作成
+- [x] `docker-compose.yml` を作成
   - API、Frontend、MongoDBサービス定義
   - ボリューム設定
 - [ ] Docker Composeでの動作確認
@@ -307,7 +307,7 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 
 ### 5.3 CI/CD設定
 
-- [ ] `.github/workflows/deploy.yml` を作成
+- [x] `.github/workflows/deploy.yml` を作成
   - Google Cloud Run デプロイ設定
   - Docker イメージビルド・プッシュ
   - 環境変数・シークレット設定
@@ -385,15 +385,6 @@ CLAUDE.mdの仕様に基づいた、AI Chat Claudeアプリケーションの段
 - 開発中はローカルMongoDBも使用可能（Docker Composeで起動）
 - Mastraの設定は環境変数から読み込み、柔軟に変更可能
 - 認証機能はPhase 2以降の拡張として計画（現在は認証不要）
-
----
-
-## 次のアクションステップ
-
-- [ ] Phase 1から順番に実装を開始
-- [ ] 各チェックボックスを完了したらマークする
-- [ ] 問題が発生したらCLAUDE.mdの仕様を参照
-- [ ] MVP完成後、Phase 2の拡張機能に進む
 
 ---
 
