@@ -57,22 +57,21 @@ export interface HealthCheckResponse {
 }
 
 /**
- * ストリーミングチャンクの種類
+ * ストリーミングイベントの種類
  */
 export enum StreamEventType {
-  CONTENT = 'content',
+  USER_MESSAGE = 'userMessage',
+  CHUNK = 'chunk',
   DONE = 'done',
   ERROR = 'error',
 }
 
 /**
- * ストリーミングチャンクレスポンス（Server-Sent Events）
+ * ストリーミングイベント（Server-Sent Events）
  */
-export interface StreamChunk {
+export interface StreamEvent {
   type: StreamEventType;
-  content?: string;
-  messageId?: string;
-  error?: string;
+  data: any;
 }
 
 /**

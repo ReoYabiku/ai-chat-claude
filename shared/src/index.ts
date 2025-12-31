@@ -14,6 +14,6 @@ export {
   ErrorCodes,
   type ErrorCode,
   StreamEventType,
-  type StreamChunk,
+  type StreamEvent,
   type StreamDoneResponse,
 } from './types/api';

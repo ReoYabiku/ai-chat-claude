@@ -8,6 +8,8 @@ import {
   type HealthCheckResponse,
   type ApiError,
   ErrorCodes,
+  StreamEventType,
+  type StreamEvent,
 } from '@ai-chat-claude/shared';
 import { API_URL, API_ENDPOINTS } from './constants';
 
@@ -120,9 +122,8 @@ export class ApiClient {
    * メッセージをストリーミングで送信
    * @param conversationId - 会話ID
    * @param content - メッセージ内容
-   * @param onChunk - チャンク受信時のコールバック
-   * @param onUserMessage - ユーザーメッセージ受信時のコールバック
-   * @param onDone - 完了時のコールバック
+   * @param callbacks - コールバック関数とオプション
+   * @returns クリーンアップ関数
    */
   async sendMessageStream(
     conversationId: string,
@@ -132,6 +133,7 @@ export class ApiClient {
       onUserMessage: (message: any) => void;
       onDone: (data: { userMessage: any; assistantMessage: any }) => void;
       onError?: (error: Error) => void;
+      signal?: AbortSignal;
     }
   ): Promise<void> {
     const url = `${this.baseUrl}/api/conversations/${conversationId}/messages/stream`;
@@ -144,6 +146,7 @@ export class ApiClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+        signal: callbacks.signal,
       });
 
       if (!response.ok) {
@@ -166,6 +169,12 @@ export class ApiClient {
       let buffer = '';
 
       while (true) {
+        // AbortSignalをチェック
+        if (callbacks.signal?.aborted) {
+          reader.cancel();
+          break;
+        }
+
         const { done, value } = await reader.read();
 
         if (done) break;
@@ -185,19 +194,19 @@ export class ApiClient {
             }
 
             try {
-              const event = JSON.parse(data);
+              const event: StreamEvent = JSON.parse(data);
 
               switch (event.type) {
-                case 'userMessage':
+                case StreamEventType.USER_MESSAGE:
                   callbacks.onUserMessage(event.data);
                   break;
-                case 'chunk':
+                case StreamEventType.CHUNK:
                   callbacks.onChunk(event.data);
                   break;
-                case 'done':
+                case StreamEventType.DONE:
                   callbacks.onDone(event.data);
                   break;
-                case 'error':
+                case StreamEventType.ERROR:
                   if (callbacks.onError) {
                     callbacks.onError(new Error(event.data));
                   }
