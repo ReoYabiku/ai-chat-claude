@@ -1,7 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { logger } from './logger';
 import { AI_MODEL, AI_CONFIG } from './constants';
-import { env } from '../utils/env-validation';
 
 // Claude 4.5 Sonnet エージェントの作成
 export const chatAgent = new Agent({

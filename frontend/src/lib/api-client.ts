@@ -168,6 +168,7 @@ export class ApiClient {
 
       let buffer = '';
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         // AbortSignalをチェック
         if (callbacks.signal?.aborted) {
