@@ -1,0 +1,137 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: asia-northeast1
+  ARTIFACT_REGISTRY_REPO: ai-chat-claude
+
+jobs:
+  deploy-api:
+    name: Deploy API to Cloud Run
+    runs-on: ubuntu-latest
+    outputs:
+      api-url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/api:${{ github.sha }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/api:latest \
+            -f api/Dockerfile \
+            ./api
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/api:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/api:latest
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy ai-chat-api \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/api:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-secrets ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,DATABASE_URL=DATABASE_URL:latest \
+            --set-env-vars NODE_ENV=production,PORT=8080,LOG_LEVEL=info \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --timeout 60 \
+            --format json | jq -r '.status.url' > api_url.txt
+
+          echo "url=$(cat api_url.txt)" >> $GITHUB_OUTPUT
+
+      - name: Display API URL
+        run: |
+          echo "API deployed to: $(cat api_url.txt)"
+
+  deploy-frontend:
+    name: Deploy Frontend to Cloud Run
+    runs-on: ubuntu-latest
+    needs: deploy-api
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as credential helper
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:${{ github.sha }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:latest \
+            --build-arg NEXT_PUBLIC_API_URL=${{ needs.deploy-api.outputs.api-url }} \
+            --build-arg NEXT_PUBLIC_APP_NAME="AI Chat Claude" \
+            --build-arg NEXT_PUBLIC_APP_VERSION="1.0.0" \
+            -f frontend/Dockerfile \
+            ./frontend
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:${{ github.sha }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:latest
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        run: |
+          gcloud run deploy ai-chat-frontend \
+            --image ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars NODE_ENV=production,NEXT_PUBLIC_API_URL=${{ needs.deploy-api.outputs.api-url }},NEXT_PUBLIC_APP_NAME="AI Chat Claude",NEXT_PUBLIC_APP_VERSION="1.0.0" \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 10 \
+            --timeout 60 \
+            --format json | jq -r '.status.url' > frontend_url.txt
+
+          echo "url=$(cat frontend_url.txt)" >> $GITHUB_OUTPUT
+
+      - name: Display Frontend URL
+        run: |
+          echo "Frontend deployed to: $(cat frontend_url.txt)"
+
+      - name: Deployment Summary
+        run: |
+          echo "### Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **API URL**: ${{ needs.deploy-api.outputs.api-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend URL**: $(cat frontend_url.txt)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Git SHA**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
