@@ -16,7 +16,7 @@ if (env.REDIS_URL) {
   });
 
   redis.on('connect', () => {
-    console.log('✓ Redis connected for rate limiting');
+    console.error('✓ Redis connected for rate limiting');
   });
 }
 

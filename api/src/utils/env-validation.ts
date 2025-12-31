@@ -2,7 +2,9 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   // Database
-  DATABASE_URL: z.string().url().startsWith('mongodb'),
+  DATABASE_URL: z.string().url().refine((url) => url.startsWith('mongodb://') || url.startsWith('mongodb+srv://'), {
+    message: 'DATABASE_URL must be a valid MongoDB connection string',
+  }),
 
   // AI API
   ANTHROPIC_API_KEY: z.string().startsWith('sk-ant-'),
