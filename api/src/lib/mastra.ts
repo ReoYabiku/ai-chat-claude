@@ -1,7 +1,6 @@
 import { Agent } from '@mastra/core/agent';
 import { logger } from './logger';
 import { AI_MODEL, AI_CONFIG } from './constants';
-import { env } from '../utils/env-validation';
 
 // メッセージの型定義
 export type ChatMessage = {
